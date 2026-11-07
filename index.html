@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>סימולציה: שימור מסה בהיתוך וקיפאון</title>
+  
+  <!-- פונט מודרני מבית Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- ספריית תרשימים Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- ספריית קונפטי לחגיגת סיום -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
+  <style>
+    :root {
+      --primary-color: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg-color: #f0f4f8;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --success: #10b981;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Rubik', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* כרטיסיית המשחק המרכזית */
+    .sim-card {
+      background: var(--card-bg);
+      border-radius: 20px;
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
+      max-width: 500px;
+      width: 100%;
+      padding: 30px;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .main-img {
+      width: 100%;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      max-height: 240px;
+      object-fit: cover;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    h2 {
+      color: #1e3c72;
+      margin-top: 0;
+      font-size: 22px;
+    }
+
+    p.description {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    /* אזור התרשים */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      margin-bottom: 20px;
+    }
+
+    /* תיבת קלט וכפתור */
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    input[type="number"] {
+      width: 80%;
+      padding: 12px;
+      font-size: 18px;
+      border: 2px solid #cbd5e1;
+      border-radius: 10px;
+      text-align: center;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--primary-color);
+    }
+
+    button {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 80%;
+      font-family: inherit;
+      transition: transform 0.2s, background-color 0.2s;
+      margin-top: 8px;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .feedback {
+      margin-top: 15px;
+      font-size: 16px;
+      font-weight: 700;
+      min-height: 26px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sim-card">
+    
+    <!-- תמונת הניסוי המעוצבת -->
+    <img src="https://raw.githubusercontent.com/milkabcd-dot/conservation-of-mass-simulation/main/image_68bf19.jpg" alt="שימור מסה בהיתוך" class="main-img" onerror="this.src='https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&auto=format&fit=crop'">
+
+    <h2>ניסוי 1: היתוך קרח בכלי סגור</h2>
+    <p class="description">
+      לפניך בקבוק אטום הרמטית עם פקק. בתוכו <b>150 גרם קרח</b>.<br>
+      לחצי על הכפתור כדי לחמם את המערכת ולהתיך את הקרח למים.
+    </p>
+
+    <!-- התרשים הדינמי -->
+    <div class="chart-container">
+      <canvas id="stateChart"></canvas>
+    </div>
+
+    <button id="heat-btn" onclick="meltIce()">חימום המערכת והתכת הקרח 🔥</button>
+
+    <!-- שאלת בדיקת המסה -->
+    <div id="question-box" class="input-group hidden">
+      <p><b>מה תהיה מסת המערכת בגרמים לאחר התכת הקרח למים?</b></p>
+      <input type="number" id="user-mass" placeholder="הכניסי מספר בגרמים...">
+      <br>
+      <button onclick="checkAnswer()">בדיקת תשובה</button>
+    </div>
+
+    <div id="feedback" class="feedback"></div>
+
+  </div>
+
+  <script>
+    // יצירת תרשים העוגה הראשוני של מצבי הצבירה
+    const ctx = document.getElementById('stateChart').getContext('2d');
+    const stateChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['קרח (מוצק)', 'מים (נוזל)'],
+        datasets: [{
+          data: [150, 0],
+          backgroundColor: ['#3b82f6', '#06b6d4']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        animation: { duration: 1200 }
+      }
+    });
+
+    // פונקציה להדמיית ההתכה והעדכון בתרשים
+    function meltIce() {
+      stateChart.data.datasets[0].data = [0, 150];
+      stateChart.update();
+
+      document.getElementById('heat-btn').classList.add('hidden');
+      document.getElementById('question-box').classList.remove('hidden');
+      document.getElementById('feedback').innerText = "הקרח הותך לחלוטין למים נוזליים!";
+      document.getElementById('feedback').style.color = "#0284c7";
+    }
+
+    // פונקציה לבדיקת התשובה של התלמיד
+    function checkAnswer() {
+      const val = document.getElementById('user-mass').value.trim();
+      const fb = document.getElementById('feedback');
+
+      if (val === "150") {
+        fb.style.color = "var(--success)";
+        fb.innerText = "כל הכבוד! ✨ חוק שימור המסה מתקיים – המסה נשארה 150 גרם!";
+        
+        confetti({
+          particleCount: 120,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      } else {
+        fb.style.color = "var(--error)";
+        fb.innerText = "לא מדויק. האם יצא חומר מהבקבוק הסגור בפקק?";
+      }
+    }
+  </script>
+
+</body>
+</html>
